@@ -283,6 +283,20 @@ const (
 	HWND_MESSAGE   = ^HWND(2) // -3
 )
 
+// Predefined windows station handles
+const (
+	HWINSTA_NONE              = 0
+	HWINSTA_ENUMDESKTOPS      = 0x0001
+	HWINSTA_READATTRIBUTES    = 0x0002
+	HWINSTA_ACCESSCLIPBOARD   = 0x0004
+	HWINSTA_CREATEDESKTOP     = 0x0008
+	HWINSTA_WRITEATTRIBUTES   = 0x0010
+	HWINSTA_ACCESSGLOBALATOMS = 0x0020
+	HWINSTA_EXITWINDOWS       = 0x0040
+	HWINSTA_ENUMERATE         = 0x0100
+	HWINSTA_READSCREEN        = 0x0200
+)
+
 // Predefined icon constants
 const (
 	IDI_APPLICATION = 32512
@@ -1286,6 +1300,7 @@ type (
 	HMONITOR  HANDLE
 	HRAWINPUT HANDLE
 	HWND      HANDLE
+	HWINSTA   HANDLE
 )
 
 type MSG struct {
@@ -1573,24 +1588,29 @@ var (
 	getClientRect              uintptr
 	getClipboardData           uintptr
 	getCursorPos               uintptr
+	getDesktopWindow           uintptr
 	getDC                      uintptr
 	getFocus                   uintptr
 	getForegroundWindow        uintptr
 	getKeyState                uintptr
+	getLastActivePopup         uintptr
 	getMenuInfo                uintptr
 	getMessage                 uintptr
 	getMonitorInfo             uintptr
 	getParent                  uintptr
+	getProcessWindowStation    uintptr
 	getRawInputData            uintptr
 	getScrollInfo              uintptr
 	getSysColor                uintptr
 	getSysColorBrush           uintptr
 	getSystemMetrics           uintptr
+	getUserObjectInformation   uintptr
 	getWindow                  uintptr
 	getWindowLong              uintptr
 	getWindowLongPtr           uintptr
 	getWindowPlacement         uintptr
 	getWindowRect              uintptr
+	getWindowText              uintptr
 	insertMenuItem             uintptr
 	invalidateRect             uintptr
 	isChild                    uintptr
@@ -1693,20 +1713,24 @@ func init() {
 	getCaretPos = MustGetProcAddress(libuser32, "GetCaretPos")
 	getClientRect = MustGetProcAddress(libuser32, "GetClientRect")
 	getClipboardData = MustGetProcAddress(libuser32, "GetClipboardData")
+	getDesktopWindow = MustGetProcAddress(libuser32, "GetDesktopWindow")
 	getCursorPos = MustGetProcAddress(libuser32, "GetCursorPos")
 	getDC = MustGetProcAddress(libuser32, "GetDC")
 	getFocus = MustGetProcAddress(libuser32, "GetFocus")
 	getForegroundWindow = MustGetProcAddress(libuser32, "GetForegroundWindow")
 	getKeyState = MustGetProcAddress(libuser32, "GetKeyState")
+	getLastActivePopup = MustGetProcAddress(libuser32, "GetLastActivePopup")
 	getMenuInfo = MustGetProcAddress(libuser32, "GetMenuInfo")
 	getMessage = MustGetProcAddress(libuser32, "GetMessageW")
 	getMonitorInfo = MustGetProcAddress(libuser32, "GetMonitorInfoW")
 	getParent = MustGetProcAddress(libuser32, "GetParent")
+	getProcessWindowStation = MustGetProcAddress(libuser32, "GetProcessWindowStation")
 	getRawInputData = MustGetProcAddress(libuser32, "GetRawInputData")
 	getScrollInfo = MustGetProcAddress(libuser32, "GetScrollInfo")
 	getSysColor = MustGetProcAddress(libuser32, "GetSysColor")
 	getSysColorBrush = MustGetProcAddress(libuser32, "GetSysColorBrush")
 	getSystemMetrics = MustGetProcAddress(libuser32, "GetSystemMetrics")
+	getUserObjectInformation = MustGetProcAddress(libuser32, "GetUserObjectInformationW")
 	getWindow = MustGetProcAddress(libuser32, "GetWindow")
 	getWindowLong = MustGetProcAddress(libuser32, "GetWindowLongW")
 	// On 32 bit GetWindowLongPtrW is not available
@@ -1717,6 +1741,7 @@ func init() {
 	}
 	getWindowPlacement = MustGetProcAddress(libuser32, "GetWindowPlacement")
 	getWindowRect = MustGetProcAddress(libuser32, "GetWindowRect")
+	getWindowText = MustGetProcAddress(libuser32, "GetWindowTextW")
 	insertMenuItem = MustGetProcAddress(libuser32, "InsertMenuItemW")
 	invalidateRect = MustGetProcAddress(libuser32, "InvalidateRect")
 	isChild = MustGetProcAddress(libuser32, "IsChild")
@@ -2164,13 +2189,22 @@ func GetDC(hWnd HWND) HDC {
 	return HDC(ret)
 }
 
+func GetDesktopWindow() HWND {
+	ret, _, _ := syscall.Syscall(getDesktopWindow, 0,
+		0,
+		0,
+		0)
+	return HWND(ret)
+
+}
+
 func GetFocus() HWND {
 	ret, _, _ := syscall.Syscall(getFocus, 0,
 		0,
 		0,
 		0)
-
 	return HWND(ret)
+
 }
 
 func GetForegroundWindow() HWND {
@@ -2190,7 +2224,14 @@ func GetKeyState(nVirtKey int32) int16 {
 
 	return int16(ret)
 }
+func GetLastActivePopup() HWND {
+	ret, _, _ := syscall.Syscall(getFocus, 0,
+		0,
+		0,
+		0)
+	return HWND(ret)
 
+}
 func GetMenuInfo(hmenu HMENU, lpcmi *MENUINFO) bool {
 	ret, _, _ := syscall.Syscall(getMenuInfo, 2,
 		uintptr(hmenu),
@@ -2228,6 +2269,15 @@ func GetParent(hWnd HWND) HWND {
 		0)
 
 	return HWND(ret)
+}
+
+func GetProcessWindowStation() HWINSTA {
+	ret, _, _ := syscall.Syscall(getProcessWindowStation, 0,
+		0,
+		0,
+		0)
+
+	return HWINSTA(ret)
 }
 
 func GetRawInputData(hRawInput HRAWINPUT, uiCommand uint32, pData unsafe.Pointer, pcbSize *uint32, cBSizeHeader uint32) uint32 {
@@ -2278,6 +2328,18 @@ func GetSystemMetrics(nIndex int32) int32 {
 	return int32(ret)
 }
 
+func GetUserObjectInformation(hWinSta HWINSTA, nIndex uint32, buffer uintptr, inlength uintptr, outlength uintptr) bool {
+	ret, _, _ := syscall.Syscall6(getUserObjectInformation, 5,
+		uintptr(hWinSta),
+		uintptr(nIndex),
+		uintptr(unsafe.Pointer(buffer)),
+		uintptr(inlength),
+		uintptr(unsafe.Pointer(outlength)),
+		0)
+
+	return ret != 0
+}
+
 func GetWindow(hWnd HWND, uCmd uint32) HWND {
 	ret, _, _ := syscall.Syscall(getWindow, 2,
 		uintptr(hWnd),
@@ -2319,6 +2381,15 @@ func GetWindowRect(hWnd HWND, rect *RECT) bool {
 		uintptr(hWnd),
 		uintptr(unsafe.Pointer(rect)),
 		0)
+
+	return ret != 0
+}
+
+func GetWindowText(hWnd HWND, text uintptr) bool {
+	ret, _, _ := syscall.Syscall(getWindowText, 2,
+		uintptr(hWnd),
+		uintptr(text),
+		128)
 
 	return ret != 0
 }
