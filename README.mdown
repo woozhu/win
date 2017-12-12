@@ -12,4 +12,6 @@ Setup
 Make sure you have a working Go installation.
 See [Getting Started](http://golang.org/doc/install.html)
 
-Now run `go get github.com/lxn/win`
+Now run `go get github.com/woozhu/win`
+
+todo list add by soon see todo list file。
