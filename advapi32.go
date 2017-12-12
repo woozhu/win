@@ -63,6 +63,9 @@ var (
 	regQueryValueEx uintptr
 	regEnumValue    uintptr
 	regSetValueEx   uintptr
+	//add by woog 20171212
+	regEnumKeyEx   uintptr
+	regDeleteValue uintptr
 )
 
 func init() {
@@ -75,6 +78,9 @@ func init() {
 	regQueryValueEx = MustGetProcAddress(libadvapi32, "RegQueryValueExW")
 	regEnumValue = MustGetProcAddress(libadvapi32, "RegEnumValueW")
 	regSetValueEx = MustGetProcAddress(libadvapi32, "RegSetValueExW")
+	//add by woog 20171212
+	regEnumKeyEx = MustGetProcAddress(libadvapi32, "RegEnumKeyW")
+	regDeleteValue = MustGetProcAddress(libadvapi32, "RegDeleteValueW")
 }
 
 func RegCloseKey(hKey HKEY) int32 {
@@ -98,6 +104,7 @@ func RegOpenKeyEx(hKey HKEY, lpSubKey *uint16, ulOptions uint32, samDesired REGS
 	return int32(ret)
 }
 
+//lpReserved 必须是0
 func RegQueryValueEx(hKey HKEY, lpValueName *uint16, lpReserved, lpType *uint32, lpData *byte, lpcbData *uint32) int32 {
 	ret, _, _ := syscall.Syscall6(regQueryValueEx, 6,
 		uintptr(hKey),
@@ -132,5 +139,25 @@ func RegSetValueEx(hKey HKEY, lpValueName *uint16, lpReserved, lpDataType uint64
 		uintptr(lpDataType),
 		uintptr(unsafe.Pointer(lpData)),
 		uintptr(cbData))
+	return int32(ret)
+}
+
+//func add by woog 20171212
+//这个函数用来枚举指定打开项的项名和类名。
+//使用之前先这样转换，hKey 是HKEY类型的指针，index是需要枚举的索引，lpName要先这样转换
+//  var lpcbName int32 = 255,lpName = make([]uint16,lpcbName)
+//  var lpcbClass int32 = 255,lpClass = make([]uint16,lpcbClass)
+//执行成功返回0，再通过syscall.UTF16ToString(lpName)和syscall.UTF16ToString(lpClass)的到string格式的内容。
+func RegEnumKeyEx(hKey HKEY, index uint32, lpName *uint16, lpcbName *uint32, lpClass *uint16, lpcbClass *uint32) int32 {
+	ret, _, _ := syscall.Syscall9(regEnumKeyEx, 6,
+		uintptr(hKey),
+		uintptr(index),
+		uintptr(unsafe.Pointer(lpName)),    //用于装载指定索引处项名的一个缓冲区
+		uintptr(unsafe.Pointer(lpcbName)),  //指定一个变量，用于装载lpName缓冲区的实际长度(包括空字符)。一旦返回，它会设为实际装载到lpName缓冲区的字符数量
+		uintptr(unsafe.Pointer(lpClass)),   //项使用的类名。可以为零
+		uintptr(unsafe.Pointer(lpcbClass)), //用于装载lpClass缓冲区长度的一个变量。一旦返回，它会设为实际装载到缓冲区的字符数量
+		0,
+		0,
+		0)
 	return int32(ret)
 }
